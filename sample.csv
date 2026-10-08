@@ -1,0 +1,4 @@
+name,domain,phone,city,industry,employees,contact,title,email,email_status
+Example Dental AB,exampledental.test,+46 8 000 01 01,Stockholm,Dental clinic,23,John Smith,Owner,john@exampledental.test,valid
+Example Dental,exampledental.test,+46 8 000 01 01,Stockholm,Dental clinic,23,,,,
+Dental Stockholm,dentalsthlm.test,+46 8 000 02 02,Stockholm,Dental clinic,12,Anna Andersson,Marketing Manager,anna@dentalsthlm.test,unknown

@@ -1,0 +1,4 @@
+{"name":"prospect-engine","version":"0.1.0","type":"module","private":true,
+"scripts":{"dev":"tsx watch src/server.ts","start":"tsx src/server.ts","typecheck":"tsc --noEmit"},
+"dependencies":{"@fastify/static":"^7.0.4","cheerio":"^1.0.0","dotenv":"^16.4.5","fastify":"^4.28.1","papaparse":"^5.4.1","pg":"^8.12.0","robots-parser":"^3.0.1"},
+"devDependencies":{"@types/node":"^20.14.0","@types/papaparse":"^5.3.14","@types/pg":"^8.11.6","tsx":"^4.16.0","typescript":"^5.5.0"}}

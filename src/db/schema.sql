@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS companies(id serial PRIMARY KEY,name text NOT NULL,normalized_name text NOT NULL,domain text UNIQUE,phone text,city text,country text,industry text,employees int,sources text[] DEFAULT '{}',provenance jsonb DEFAULT '{}',created_at timestamptz DEFAULT now(),last_enriched_at timestamptz);
+CREATE TABLE IF NOT EXISTS contacts(id serial PRIMARY KEY,company_id int REFERENCES companies ON DELETE CASCADE,name text,title text,email text,email_status text DEFAULT 'unknown',source text,UNIQUE(company_id,name));
+CREATE TABLE IF NOT EXISTS website_analysis(company_id int PRIMARY KEY REFERENCES companies ON DELETE CASCADE,score int,metrics jsonb,last_scraped_at timestamptz,next_refresh_at timestamptz);
+CREATE TABLE IF NOT EXISTS prospect_signals(id serial PRIMARY KEY,company_id int REFERENCES companies ON DELETE CASCADE,name text,description text,evidence text,source text,confidence real,detected_at timestamptz DEFAULT now(),UNIQUE(company_id,name));
+CREATE TABLE IF NOT EXISTS searches(id serial PRIMARY KEY,name text,icp jsonb NOT NULL,created_at timestamptz DEFAULT now());
+CREATE TABLE IF NOT EXISTS prospects(search_id int REFERENCES searches ON DELETE CASCADE,company_id int REFERENCES companies ON DELETE CASCADE,score int,band text,breakdown jsonb,PRIMARY KEY(search_id,company_id));
+CREATE TABLE IF NOT EXISTS dedupe_candidates(id serial PRIMARY KEY,company_id int REFERENCES companies ON DELETE CASCADE,incoming jsonb,similarity real,status text DEFAULT 'pending');

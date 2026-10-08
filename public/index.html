@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prospect Engine</title>
+<style>
+:root{--bg:#f2f4f5;--card:#fff;--ink:#16222b;--mu:#69767f;--bd:#dde3e6;--ac:#0f766e;--wa:#b4530a}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh}
+aside{width:230px;background:#16222b;color:#e8eef0;padding:16px;flex:none}aside h2{font-size:15px;margin:0 0 12px}
+.proj{padding:8px 10px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:6px}.proj:hover,.proj.on{background:#25353f}.proj small{color:#9fb0b8}
+.proj b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+main{flex:1;padding:20px;max-width:1000px;min-width:0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:16px;margin-bottom:14px}
+h1{font-size:20px;margin:0 0 14px}h3{margin:0 0 4px;font-size:15px}.hint{color:var(--mu);margin:0 0 10px;font-size:13px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mu)}
+input,select{font:inherit;color:var(--ink);padding:7px 9px;border:1px solid var(--bd);border-radius:6px;background:#fff;width:100%}
+input:focus,button:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+button{font:inherit;padding:8px 14px;border-radius:6px;border:1px solid var(--bd);background:#fff;cursor:pointer}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.x{background:none;border:0;color:#9fb0b8;padding:0 4px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.msg{color:var(--mu)}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd);white-space:nowrap}th{font-size:12px;color:var(--mu);font-weight:500}
+tbody tr{cursor:pointer}tbody tr:hover{background:#f7f9f9}.tw{overflow-x:auto}
+.pill{padding:2px 9px;border-radius:99px;font-size:12px;border:1px solid var(--bd)}.hi{border-color:var(--ac);color:var(--ac);font-weight:600}
+.q{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.q span{background:var(--bg);border-radius:99px;padding:2px 10px;font-size:12px}
+details summary{cursor:pointer;color:var(--ac);margin-top:10px}
+@media(max-width:760px){body{flex-direction:column}aside{width:auto}}
+</style></head><body>
+<aside><h2>Projekt</h2><button class="p" style="width:100%;margin-bottom:10px" onclick="newProject()">+ Nytt projekt</button><div id="list"></div></aside>
+<main>
+<h1><input id="name" placeholder="Projektnamn, t.ex. Tandläkare Stockholm" style="font-size:18px;font-weight:600"></h1>
+
+<div class="card"><h3>1. Vilka kunder letar du efter?</h3><p class="hint">Skilj flera ord åt med komma.</p>
+<div class="g">
+<label>Bransch (ord)<input id="ind" value="tandläkare, dental"></label>
+<label>Städer<input id="cit" value="Stockholm"></label>
+<label>Anställda, minst<input id="emn" type="number" value="5"></label>
+<label>Anställda, högst<input id="emx" type="number" value="50"></label>
+<label>Hemsida räknas som svag under poäng<input id="weak" type="number" value="60"></label>
+<label>Titlar du vill nå<input id="tit" value="ägare, vd, grundare, marknad"></label>
+</div>
+<details><summary>Avancerat: hur många poäng varje sak ger</summary>
+<div class="g" style="margin-top:10px">
+<label>Rätt bransch<input id="w_industry" type="number" value="20"></label><label>Rätt stad<input id="w_location" type="number" value="15"></label>
+<label>Rätt storlek<input id="w_employees" type="number" value="10"></label><label>Har hemsida<input id="w_website" type="number" value="5"></label>
+<label>Svag hemsida<input id="w_websiteProblems" type="number" value="25"></label><label>Rätt kontaktperson<input id="w_decisionMaker" type="number" value="10"></label>
+<label>Verifierad e-post<input id="w_verifiedEmail" type="number" value="15"></label>
+<label>Nivå "Potential" från<input id="b1" type="number" value="40"></label><label>Nivå "Bra" från<input id="b2" type="number" value="60"></label><label>Nivå "Hög prio" från<input id="b3" type="number" value="80"></label>
+</div></details></div>
+
+<div class="card"><h3>2. Lägg till företag</h3><p class="hint">Ladda upp en CSV-lista, skriv in företag ett i taget, eller båda. Du kan lägga till fler senare.</p>
+<label>CSV-fil<input type="file" id="file" accept=".csv"></label>
+<div class="g" style="margin-top:12px">
+<label>Företag<input id="m_name"></label><label>Hemsida (t.ex. klinik.se)<input id="m_domain"></label><label>Stad<input id="m_city"></label>
+<label>Bransch<input id="m_industry"></label><label>Anställda<input id="m_employees" type="number"></label><label>Kontaktperson<input id="m_contact"></label>
+<label>Titel<input id="m_title"></label><label>E-post<input id="m_email"></label></div>
+<div class="bar" style="margin-top:10px"><button onclick="addOne()">Lägg till i listan</button><span class="msg" id="qmsg"></span></div><div class="q" id="queue"></div></div>
+
+<div class="card"><div class="bar">
+<button class="p" onclick="save()">3. Spara och poängsätt</button>
+<button onclick="enrich()">4. Analysera hemsidor</button>
+<button onclick="exp()">Exportera CSV</button><span class="msg" id="msg"></span></div></div>
+
+<div class="card"><div class="bar" style="justify-content:space-between"><h3>Resultat</h3><label style="flex-direction:row;align-items:center;gap:8px">Visa poäng över <input id="min" type="number" value="0" style="width:70px" oninput="load()"></label></div>
+<div class="tw"><table><thead><tr><th>Företag</th><th>Stad</th><th>Kontakt</th><th>E-post</th><th>Poäng</th><th>Hemsida</th><th>Nivå</th></tr></thead><tbody id="tb"><tr><td colspan="7" class="msg">Inga företag än. Lägg till några ovan och tryck på Spara och poängsätt.</td></tr></tbody></table></div></div>
+<div class="card" id="det" hidden></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);let sid=null,queue=[];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const L=id=>$(id).value.split(',').map(x=>x.trim()).filter(Boolean);
+const BAND={'High priority':'Hög prio','Good':'Bra','Potential':'Potential','Poor fit':'Dålig match'};
+const W=['industry','location','employees','website','websiteProblems','decisionMaker','verifiedEmail'];
+const post=(u,b)=>fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});
+function icp(){const weights={};W.forEach(k=>weights[k]=+$('w_'+k).value);
+return{industryKeywords:L('ind'),excludeKeywords:['hospital','sjukhus','universitet','university'],cities:L('cit'),employeesMin:+$('emn').value,employeesMax:+$('emx').value,weakWebsiteBelow:+$('weak').value,priorityTitles:L('tit'),excludeEmailStatuses:['invalid','risky'],weights,bands:{potential:+$('b1').value,good:+$('b2').value,high:+$('b3').value}}}
+function fill(i){$('ind').value=i.industryKeywords.join(', ');$('cit').value=i.cities.join(', ');$('emn').value=i.employeesMin;$('emx').value=i.employeesMax;$('weak').value=i.weakWebsiteBelow;$('tit').value=i.priorityTitles.join(', ');W.forEach(k=>$('w_'+k).value=i.weights[k]);$('b1').value=i.bands.potential;$('b2').value=i.bands.good;$('b3').value=i.bands.high}
+async function projects(){const r=await (await fetch('/api/searches')).json();
+$('list').innerHTML=r.map(p=>`<div class="proj ${p.id===sid?'on':''}" onclick="openP(${p.id})"><b>${esc(p.name)}</b><span><small>${p.n}</small><button class="x" title="Ta bort" onclick="event.stopPropagation();del(${p.id})">×</button></span></div>`).join('')||'<small>Inga projekt än</small>'}
+async function openP(id){const s=await (await fetch('/api/searches/'+id)).json();sid=id;$('name').value=s.name;fill(s.icp);queue=[];drawQ();$('det').hidden=true;$('msg').textContent='';projects();load()}
+function newProject(){sid=null;$('name').value='';queue=[];drawQ();$('file').value='';$('tb').innerHTML='<tr><td colspan="7" class="msg">Inga företag än.</td></tr>';$('det').hidden=true;projects()}
+async function del(id){if(!confirm('Ta bort projektet? Företagen finns kvar i databasen.'))return;await fetch('/api/searches/'+id,{method:'DELETE'});if(sid===id)newProject();else projects()}
+function addOne(){const o={};['name','domain','city','industry','employees','contact','title','email'].forEach(k=>{o[k]=$('m_'+k).value.trim();$('m_'+k).value=''});
+if(!o.name){$('qmsg').textContent='Skriv minst ett företagsnamn.';return}$('qmsg').textContent='';queue.push(o);drawQ()}
+function drawQ(){$('queue').innerHTML=queue.map((c,i)=>`<span>${esc(c.name)} <a href="#" onclick="queue.splice(${i},1);drawQ();return false">×</a></span>`).join('')}
+async function save(){try{$('msg').textContent='Sparar...';const f=$('file').files[0];const csv=f?await f.text():undefined;
+const r=await (await post('/api/prospects/search',{searchId:sid,name:$('name').value||'Nytt projekt',icp:icp(),csv,companies:queue})).json();
+sid=r.searchId;queue=[];drawQ();$('file').value='';$('msg').textContent=`Klart. ${r.imported} företag tillagda.`;projects();load()}catch(e){$('msg').textContent='Fel: '+e.message}}
+async function enrich(){if(!sid)return $('msg').textContent='Spara projektet först.';$('msg').textContent='Analyserar hemsidor, ca 1 sekund per företag. Vänta...';
+const r=await (await post('/api/prospects/enrich',{searchId:sid})).json();$('msg').textContent=`Klart. ${r.analyzed} analyserade, ${r.skipped} hoppades över (t.ex. otillgängliga sajter).`;load()}
+async function load(){if(!sid)return;const r=await (await fetch(`/api/prospects?searchId=${sid}&min=${$('min').value||0}`)).json();
+$('tb').innerHTML=r.map(p=>`<tr onclick="show(${p.id})"><td>${esc(p.name)}</td><td>${esc(p.city)}</td><td>${esc(p.contact?.name||'–')}</td><td>${esc(p.contact?.email_status||'–')}</td><td><b>${p.score}</b></td><td>${p.website_score??'–'}</td><td><span class="pill ${p.band==='High priority'?'hi':''}">${BAND[p.band]||''}</span></td></tr>`).join('')||'<tr><td colspan="7" class="msg">Inga företag att visa.</td></tr>'}
+async function show(id){const d=await (await fetch(`/api/prospects/${id}?searchId=${sid}`)).json(),c=d.company;$('det').hidden=false;
+$('det').innerHTML=`<h3>${esc(c.name)}</h3><p class="hint">${esc(c.domain||'Ingen hemsida')} · ${esc(c.city||'')} · källa: ${esc((c.sources||[]).join(', '))}</p>
+<b>Varför den här poängen</b><ul>${d.breakdown.map(p=>`<li>+${p.points} ${esc(p.rule)} <span class="msg">(${esc(p.evidence)})</span></li>`).join('')||'<li class="msg">Inga regler matchade</li>'}</ul>
+<b>Möjligheter att ta upp med dem</b><ul>${d.signals.map(s=>`<li>${esc(s.name)} <span class="msg">– ${esc(s.evidence)}</span></li>`).join('')||'<li class="msg">Inga hittade. Tryck på Analysera hemsidor.</li>'}</ul>
+<b>Kontakt</b><p>${d.contacts.map(k=>`${esc(k.name)}${k.title?', '+esc(k.title):''}${k.email?' · '+esc(k.email)+' ('+esc(k.email_status)+')':''}`).join('<br>')||'Ingen kontaktperson angiven'}</p>`;
+$('det').scrollIntoView({behavior:'smooth'})}
+async function exp(){if(!sid)return;const b=await (await post('/api/prospects/export',{searchId:sid})).blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=($('name').value||'prospekt')+'.csv';a.click()}
+projects();
+</script></body></html>
