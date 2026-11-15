@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import Papa from 'papaparse';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { q, migrate } from './db/index.js';
 import { CsvSource } from './core/csvSource.js';
 import { dice, normDomain, normName } from './core/normalize.js';
@@ -10,7 +11,44 @@ import { scoreProspect } from './core/scoring.js';
 import { analyzeWebsite } from './crawler/analyze.js';
 import { defaultIcp, type Company, type Icp } from './core/types.js';
 
-const app = Fastify({ logger: true, bodyLimit: 20 * 1024 * 1024 });
+const app = Fastify({ logger: true, bodyLimit: 20 * 1024 * 1024, trustProxy: true });
+
+// ---- Password protection (active when APP_PASSWORD is set in .env) ----
+const PASSWORD = process.env.APP_PASSWORD;
+const secret = process.env.SESSION_SECRET || PASSWORD || '';
+const token = () => crypto.createHmac('sha256', secret).update('prospect-engine-session').digest('hex');
+const safeEq = (a: string, b: string) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+const cookieOf = (h?: string) => /(?:^|;\s*)pe_session=([a-f0-9]+)/.exec(h ?? '')?.[1];
+const attempts = new Map<string, { n: number; t: number }>();
+if (!PASSWORD) app.log.warn('APP_PASSWORD is not set: anyone who can reach this app can use it.');
+app.addHook('onRequest', async (req, rep) => {
+  if (!PASSWORD) return;
+  const url = req.url.split('?')[0];
+  if (url === '/login' || url === '/api/login') return;
+  const c = cookieOf(req.headers.cookie);
+  if (c && safeEq(c, token())) return;
+  if (url.startsWith('/api/')) return rep.code(401).send({ error: 'unauthorized' });
+  return rep.redirect('/login');
+});
+const LOGIN_HTML = `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Logga in</title>
+<style>body{font:15px "Segoe UI",system-ui,sans-serif;background:#f2f4f5;color:#16222b;display:grid;place-items:center;min-height:100vh;margin:0}
+form{background:#fff;border:1px solid #dde3e6;border-radius:8px;padding:24px;width:min(320px,90vw)}h1{font-size:18px;margin:0 0 14px}
+input,button{font:inherit;width:100%;padding:9px;border-radius:6px;border:1px solid #dde3e6;margin-bottom:10px}button{background:#0f766e;color:#fff;border-color:#0f766e;cursor:pointer}p{color:#b4530a;min-height:1.2em;margin:0}</style></head>
+<body><form id="f"><h1>Prospect Engine</h1><input id="p" type="password" placeholder="Lösenord" autofocus><button>Logga in</button><p id="m"></p></form>
+<script>f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p.value})});
+if(r.ok)location='/';else m.textContent=(await r.json()).error||'Något gick fel.'}</script></body></html>`;
+app.get('/login', async (_req, rep) => rep.type('text/html').send(LOGIN_HTML));
+app.post<{ Body: { password?: string } }>('/api/login', async (req, rep) => {
+  const ip = req.ip, now = Date.now(), a = attempts.get(ip);
+  if (a && now - a.t < 60_000 && a.n >= 5) return rep.code(429).send({ error: 'För många försök. Vänta en minut.' });
+  attempts.set(ip, !a || now - a.t >= 60_000 ? { n: 1, t: now } : { n: a.n + 1, t: a.t });
+  if (!PASSWORD || !safeEq(String(req.body?.password ?? ''), PASSWORD)) return rep.code(401).send({ error: 'Fel lösenord.' });
+  attempts.delete(ip);
+  const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+  rep.header('set-cookie', `pe_session=${token()}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure}`);
+  return { ok: true };
+});
+app.post('/api/logout', async (_req, rep) => { rep.header('set-cookie', 'pe_session=; HttpOnly; Path=/; Max-Age=0'); return { ok: true }; });
 app.register(fastifyStatic, { root: path.resolve('public') });
 
 async function upsertCompany(c: Company): Promise<number> {
@@ -68,9 +106,10 @@ app.get<{ Params: { id: string } }>('/api/searches/:id', async (req, rep) => (aw
 app.delete<{ Params: { id: string } }>('/api/searches/:id', async (req) => { await q('DELETE FROM searches WHERE id=$1', [req.params.id]); return { ok: true }; });
 
 // Crawls homepages (robots.txt respected, results cached for 7 days) then re-scores.
-app.post<{ Body: { searchId: number } }>('/api/prospects/enrich', async (req) => {
+app.post<{ Body: { searchId: number; ids?: number[] } }>('/api/prospects/enrich', async (req) => {
   const sid = req.body.searchId;
-  const todo = (await q(`SELECT c.id,c.domain FROM companies c JOIN prospects p ON p.company_id=c.id AND p.search_id=$1 LEFT JOIN website_analysis w ON w.company_id=c.id WHERE c.domain IS NOT NULL AND (w.next_refresh_at IS NULL OR w.next_refresh_at<now())`, [sid])).rows;
+  const only = req.body.ids?.length ? req.body.ids : null; // optional: analyze just these companies (lets the page work in small batches)
+  const todo = (await q(`SELECT c.id,c.domain FROM companies c JOIN prospects p ON p.company_id=c.id AND p.search_id=$1 LEFT JOIN website_analysis w ON w.company_id=c.id WHERE c.domain IS NOT NULL AND ($2::bigint[] IS NULL OR c.id = ANY($2::bigint[])) AND (w.next_refresh_at IS NULL OR w.next_refresh_at<now())`, [sid, only])).rows;
   let done = 0, skipped = 0;
   for (const c of todo) {
     try {
